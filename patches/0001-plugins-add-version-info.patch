@@ -1,0 +1,47 @@
+From b6e51a2dd887b5e2ecff2844371e498e69b2dc99 Mon Sep 17 00:00:00 2001
+From: Huang Yang <huangyang@loongson.cn>
+Date: Fri, 13 Mar 2026 06:57:54 +0000
+Subject: [PATCH] plugins add version info
+
+---
+ build_linux.sh | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/build_linux.sh b/build_linux.sh
+index b6d054e7..b2edf0fb 100755
+--- a/build_linux.sh
++++ b/build_linux.sh
+@@ -8,8 +8,21 @@ fi
+ 
+ export GOFLAGS="${GOFLAGS} -mod=vendor"
+ 
++# 获取简洁的版本号
++if git describe --tags --abbrev=0 2>/dev/null; then
++    # 获取最新的tag，如 v1.9.0
++    VERSION=$(git describe --tags --abbrev=0 2>/dev/null)
++elif git describe --tags 2>/dev/null; then
++    # 如果没有完整tag，获取简洁的版本
++    VERSION=$(git describe --tags --always 2>/dev/null)
++else
++    VERSION="unknown"
++fi
++
+ mkdir -p "${PWD}/bin"
+ 
++LDFLAGS="-X github.com/containernetworking/plugins/pkg/utils/buildversion.BuildVersion=${VERSION}"
++
+ echo "Building plugins ${GOOS}"
+ PLUGINS="plugins/meta/* plugins/main/* plugins/ipam/*"
+ for d in $PLUGINS; do
+@@ -17,7 +30,7 @@ for d in $PLUGINS; do
+ 		plugin="$(basename "$d")"
+ 		if [ "${plugin}" != "windows" ]; then
+ 			echo "  $plugin"
+-			${GO:-go} build -o "${PWD}/bin/$plugin" "$@" ./"$d"
++			${GO:-go} build -ldflags "${LDFLAGS}" -o "${PWD}/bin/$plugin" "$@" ./"$d"
+ 		fi
+ 	fi
+ done
+-- 
+2.41.0
+

@@ -1,0 +1,67 @@
+name: Auto Build Kubernetes
+
+on:
+  schedule:
+    - cron: '0 16 * * *'
+  workflow_dispatch:
+
+env:
+  UPSTREAM_OWNER: "kubernetes"
+  UPSTREAM_REPO: "kubernetes"
+
+jobs:
+  build-and-release:
+    if: github.repository_owner == 'loongarch64-releases'
+    runs-on: ubuntu-latest
+    env:
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Check Version
+        id: get_version
+        run: |
+          chmod +x ./scripts/get_version.sh
+          LATEST_VERSION=$(./scripts/get_version.sh)
+          # 1. 获取上游最新版本
+          echo "Latest upstream version: $LATEST_VERSION"
+
+          # 2. 检查版本是否 >= v1.32.0
+          if [[ "$(printf '%s\n' "v1.32.0" "$LATEST_VERSION" | sort -V | head -1)" != "$LATEST_VERSION" ]]; then
+            echo "Version $LATEST_VERSION < v1.32.0, skipping build (old versions already built)"
+            echo "skip_workflow=true" >> $GITHUB_OUTPUT
+            echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 3. 检查本仓库是否已存在该 Release
+          if gh release view "${LATEST_VERSION}" >/dev/null 2>&1; then
+            echo "Release ${LATEST_VERSION} already exists. Skipping."
+            echo "skip_workflow=true" >> $GITHUB_OUTPUT
+          else
+            echo "Release ${LATEST_VERSION} not found. Need to build."
+            echo "skip_workflow=false" >> $GITHUB_OUTPUT
+          fi
+
+          # 4. 输出版本号
+          echo "version=$LATEST_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Build RPM Packages
+        if: steps.get_version.outputs.skip_workflow != 'true'
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          chmod +x ./scripts/build_in_docker.sh
+          ./scripts/build_in_docker.sh "$VERSION"
+
+      - name: Upload Release
+        if: steps.get_version.outputs.skip_workflow != 'true'
+        run: |
+          VERSION="${{ steps.get_version.outputs.version }}"
+          gh release create "$VERSION" \
+            --title "${UPSTREAM_REPO} ${VERSION} for loongarch64" \
+            --notes "Automated build for version ${VERSION} based on ${UPSTREAM_OWNER}/${UPSTREAM_REPO}" \
+            dists/$VERSION/*

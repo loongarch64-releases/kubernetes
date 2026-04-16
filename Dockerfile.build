@@ -1,16 +1,44 @@
-FROM lcr.loongnix.cn/library/golang:1.25
+FROM lcr.loongnix.cn/loongnix-server/loongnix-server:23.2
 
-RUN apt-get update && apt-get install -y \
+# 安装必要的软件包
+RUN yum install -y \
     bash \
     sed \
     wget \
     git \
     coreutils \
     gcc \
-    libc6-dev \
-    libseccomp-dev \
-    && rm -rf /var/lib/apt/lists/*
+    gcc-c++ \
+    make \
+    glibc-devel \
+    libseccomp-devel \
+    rpm-build \
+    rpm-devel \
+    rpmdevtools \
+    createrepo \
+    jq \
+    curl \
+    && yum clean all \
+    && rm -rf /var/cache/yum
 
-WORKDIR /workspace
+# 创建普通用户 loongson
+RUN useradd -m -s /bin/bash loongson && \
+    # 可选：设置密码
+    echo "loongson:loongson" | chpasswd && \
+    echo "loongson ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+# 创建并设置工作目录
+RUN mkdir -p /home/loongson/workspace && \
+    chown -R loongson:loongson /home/loongson/workspace
+
+# 切换到普通用户
+USER loongson
+
+# 设置工作目录
+WORKDIR /home/loongson/workspace
+
+# 设置环境变量
+ENV HOME=/home/loongson
+ENV USER=loongson
 
 CMD ["/bin/bash"]

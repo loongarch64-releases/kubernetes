@@ -5,8 +5,8 @@
 # -o pipefail: 管道失败即退出
 set -euo pipefail
 
-UPSTREAM_OWNER=kubenetes
-UPSTREAM_REPO=kubenetes
+UPSTREAM_OWNER=kubernetes
+UPSTREAM_REPO=kubernetes
 VERSION="${1}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
