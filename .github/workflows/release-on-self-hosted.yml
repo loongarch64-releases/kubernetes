@@ -1,6 +1,8 @@
 name: Auto Build kubernetes (Self hosted)
 
 on:
+  schedule:
+    - cron: '9 12 * * *'
   workflow_dispatch:
 
 env:
